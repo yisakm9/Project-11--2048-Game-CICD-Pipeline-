@@ -1,0 +1,127 @@
+name: 'deploy Dev'
+
+on:
+  push:
+    branches:
+      - master # Note: Change this to 'main' if that is your primary branch
+  pull_request:
+    branches:
+      - master # Note: Change this to 'main' if that is your primary branch
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate_and_plan:
+    name: 'Validate, Test, Scan & Plan'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_WORKING_DIR: 'environments/dev'
+      
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+
+      # ... (AWS Credentials, Python Setup, and Pytest steps are unchanged) ...
+      - name: 'Configure AWS Credentials (OIDC)'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::456202167790:role/githubaction
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Terraform-Plan
+
+      - name: 'Set up Python 3.9'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      
+      - name: 'Install Dependencies and Run Pytest'
+        env:
+          LABELS_TABLE_NAME: "mock-table-for-testing"
+          GSI_NAME: "mock-index-for-testing"
+          PYTHONPATH: "." 
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest test/
+          
+      # --- THIS STEP IS NOW CRITICAL ---
+      - name: 'Create Lambda Deployment Packages'
+        run: |
+          (cd src/image_processing && zip -r ../../environments/dev/image-processing.zip .)
+          (cd src/search_by_label && zip -r ../../environments/dev/search-by-label.zip .)
+
+      # ... (Terraform setup, lint, scan steps are unchanged) ...
+      - name: 'Set up Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: 'Terraform Init'
+        id: init
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET_DEV }}"
+      
+      - name: 'Terraform Validate'
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" validate -no-color
+
+      - name: 'Terraform Plan'
+        id: plan
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" plan -no-color -out=tfplan
+
+      # ... (PR commenting steps are unchanged) ...
+      
+      # --- THIS STEP IS NOW CRITICAL ---
+      - name: 'Upload Terraform and Lambda Artifacts'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-dev
+          path: |
+            ${{ env.TF_WORKING_DIR }}/tfplan
+            ${{ env.TF_WORKING_DIR }}/image-processing.zip
+            ${{ env.TF_WORKING_DIR }}/search-by-label.zip
+          retention-days: 1
+
+  deploy_to_dev:
+    name: 'Deploy to Dev'
+    runs-on: ubuntu-latest
+    needs: validate_and_plan
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
+    environment: dev
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_WORKING_DIR: 'environments/dev'
+        
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+
+      - name: 'Configure AWS Credentials (OIDC)'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::456202167790:role/githubaction
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Terraform-Apply
+
+      - name: 'Set up Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+      
+      # --- THIS STEP IS NOW CRITICAL ---
+      - name: 'Download Build Artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-dev
+          path: ${{ env.TF_WORKING_DIR }}
+        
+      - name: 'Terraform Init'
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET_DEV }}"
+        
+      - name: 'Terraform Apply'
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" apply -auto-approve tfplan

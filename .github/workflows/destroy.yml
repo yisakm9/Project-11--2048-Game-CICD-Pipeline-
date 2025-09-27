@@ -1,0 +1,64 @@
+name: 'Destroy Dev Environment'
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'MANDATORY: To prevent accidental destruction, type "destroy" to confirm.'
+        required: true
+        default: 'do-not-destroy'
+
+jobs:
+  terraform-destroy:
+    name: 'Terraform Destroy Dev'
+    runs-on: ubuntu-latest
+    
+    environment: dev
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_WORKING_DIR: 'environments/dev'
+      CONFIRMATION_PHRASE: "destroy"
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+
+      - name: 'Configure AWS Credentials (OIDC)'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::456202167790:role/githubaction
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Terraform-Destroy
+
+      # --- THIS IS THE FIX ---
+      - name: 'Create Dummy Lambda Artifacts for Destroy'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          touch image-processing.zip
+          touch search-by-label.zip
+          echo "Created dummy zip files to allow terraform destroy to run."
+
+      - name: 'Set up Terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: 'Terraform Init'
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET_DEV }}"
+
+      - name: 'Verify Destroy Confirmation'
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "${{ env.CONFIRMATION_PHRASE }}" ]; then
+            echo "❌ ERROR: Confirmation phrase did not match. Aborting workflow."
+            exit 1
+          else
+            echo "✅ Confirmation phrase matches. Proceeding with destroy operation."
+          fi
+      
+      - name: 'Terraform Destroy'
+        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" destroy -auto-approve
