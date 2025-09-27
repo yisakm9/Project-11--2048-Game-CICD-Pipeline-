@@ -18,3 +18,11 @@ module "vpc" {
     "10.0.102.0/24"
   ]
 }
+
+module "ecr" {
+  source = "../../modules/ecr"
+
+  project_name    = var.project_name
+  environment     = var.environment
+  repository_name = "${var.project_name}-${var.environment}"
+}
