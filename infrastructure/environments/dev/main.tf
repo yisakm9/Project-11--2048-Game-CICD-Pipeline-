@@ -1,3 +1,6 @@
+# --- Data Sources ---
+# Retrieves the AWS Account ID dynamically.
+data "aws_caller_identity" "current" {}
 # --- Networking ---
 # Instantiate the VPC module to create the network foundation.
 module "vpc" {
@@ -36,4 +39,16 @@ module "alb" {
   environment       = var.environment
   vpc_id            = module.vpc.vpc_id
   public_subnet_ids = module.vpc.public_subnet_ids
+}
+
+
+# --- IAM ---
+# Instantiate the IAM module to create the necessary roles for the ECS service.
+module "iam" {
+  source = "../../modules/iam"
+
+  project_name   = var.project_name
+  environment    = var.environment
+  aws_account_id = data.aws_caller_identity.current.account_id
+  aws_region     = var.region
 }
