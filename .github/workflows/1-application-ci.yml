@@ -1,0 +1,61 @@
+#
+# Description: Continuous Integration (CI) workflow for building and pushing the application's Docker image.
+#
+# Trigger: This workflow runs automatically on a push to the 'application/' directory
+#          on any branch, or can be triggered manually.
+#
+name: CI - Build Application
+
+on:
+  # Trigger the workflow on pushes to any branch that change application code
+  push:
+    branches:
+      - '**' # Runs on all branches
+    paths:
+      - 'application/**'
+
+  # Allow the workflow to be triggered manually
+  workflow_dispatch:
+jobs:
+  build-and-push:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::456202167790:role/githubaction
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Docker Image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }} #  commit SHA for a unique tag
+        run: |
+          # Build the docker image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./application
+          # Push the image to ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # Also tag as 'latest' for the service to automatically pick up
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Force New ECS Deployment
+        if: github.ref == 'refs/heads/main' # Only deploy on merges to main
+        run: |
+          echo "Forcing new deployment of the service..."
+          aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $ECS_SERVICE_NAME --force-new-deployment
+          echo "Deployment initiated."
