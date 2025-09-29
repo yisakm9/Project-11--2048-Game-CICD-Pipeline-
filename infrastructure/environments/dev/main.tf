@@ -52,3 +52,18 @@ module "iam" {
   aws_account_id = data.aws_caller_identity.current.account_id
   aws_region     = var.region
 }
+
+# --- ECS Service ---
+# Instantiate the ECS module to run our containerized application.
+module "ecs_service" {
+  source = "../../modules/ecs_service"
+
+  project_name                  = var.project_name
+  environment                   = var.environment
+  vpc_id                        = module.vpc.vpc_id
+  private_subnet_ids            = module.vpc.private_subnet_ids
+  alb_security_group_id         = module.alb.alb_security_group_id
+  main_target_group_arn         = module.alb.main_target_group_arn
+  ecs_task_execution_role_arn   = module.iam.ecs_task_execution_role_arn
+  ecr_repository_url            = module.ecr.repository_url
+}
