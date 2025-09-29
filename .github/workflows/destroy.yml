@@ -1,64 +1,67 @@
-name: 'Destroy Dev Environment'
+#
+# Description: A manually triggered workflow to DESTROY the Terraform infrastructure.
+#
+# WARNING: This is a destructive operation. It will delete all managed infrastructure
+#          in the specified environment. It is intentionally not triggered automatically.
+#
+# Trigger: This workflow can ONLY be triggered manually from the GitHub Actions UI.
+#
+name: DESTROY Infrastructure
 
 on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: 'MANDATORY: To prevent accidental destruction, type "destroy" to confirm.'
+        description: 'To confirm, type the exact phrase "destroy-dev-environment".'
         required: true
-        default: 'do-not-destroy'
 
 jobs:
-  terraform-destroy:
-    name: 'Terraform Destroy Dev'
+  destroy-infrastructure:
+    name: Destroy Development Environment
     runs-on: ubuntu-latest
-    
-    environment: dev
+    environment: development # Optional: for GitHub environment protection rules
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      TF_WORKING_DIR: 'environments/dev'
-      CONFIRMATION_PHRASE: "destroy"
+      # The required phrase for the confirmation input.
+      CONFIRMATION_PHRASE: 'destroy-dev-environment'
 
     permissions:
-      id-token: write
-      contents: read
+      id-token: write # Required for OIDC
+      contents: read  # Required to checkout the repo
+
+    defaults:
+      run:
+        working-directory: ./infrastructure/environments/dev
 
     steps:
-      - name: 'Checkout Repository'
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 'Configure AWS Credentials (OIDC)'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::456202167790:role/githubaction
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActions-Terraform-Destroy
-
-      # --- THIS IS THE FIX ---
-      - name: 'Create Dummy Lambda Artifacts for Destroy'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: |
-          touch image-processing.zip
-          touch search-by-label.zip
-          echo "Created dummy zip files to allow terraform destroy to run."
-
-      - name: 'Set up Terraform'
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.13.1
-
-      - name: 'Terraform Init'
-        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET_DEV }}"
-
-      - name: 'Verify Destroy Confirmation'
+      - name: Verify Destroy Confirmation
         run: |
           if [ "${{ github.event.inputs.confirmation }}" != "${{ env.CONFIRMATION_PHRASE }}" ]; then
-            echo "❌ ERROR: Confirmation phrase did not match. Aborting workflow."
+            echo "❌ ERROR: Confirmation phrase did not match. Expected '${{ env.CONFIRMATION_PHRASE }}'. Aborting workflow."
             exit 1
           else
             echo "✅ Confirmation phrase matches. Proceeding with destroy operation."
           fi
-      
-      - name: 'Terraform Destroy'
-        run: terraform -chdir="${{ env.TF_WORKING_DIR }}" destroy -auto-approve
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # The ARN of the IAM role to assume.
+          role-to-assume: arn:aws:iam::456202167790:role/githubaction
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.1"
+          
+      - name: Terraform Init
+        id: init
+        run: terraform init -input=false
+
+      - name: Terraform Destroy
+        id: destroy
+        run: terraform destroy -auto-approve -var-file="dev.tfvars"
