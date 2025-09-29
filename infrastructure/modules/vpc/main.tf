@@ -1,4 +1,6 @@
-# --- VPC ---
+# Description: Provisions the core networking infrastructure (VPC, Subnets, Gateways, Routes).
+
+# VPC 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr_block
   enable_dns_support   = true
@@ -22,7 +24,6 @@ resource "aws_internet_gateway" "main" {
 
 resource "aws_eip" "nat" {
   count      = length(var.public_subnet_cidr_blocks)
-  domain     = "vpc"
   depends_on = [aws_internet_gateway.main]
 
   tags = {
@@ -105,17 +106,18 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
 }
+
 # --- VPC Endpoints for ECR ---
 # Creates a private network path for ECS tasks in private subnets
 # to pull images from ECR without needing to go over the public internet.
 # This is a critical requirement for Fargate tasks in private subnets.
 
 resource "aws_vpc_endpoint" "ecr_api" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${aws_get_region().name}.ecr.api"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.default.id] # Using the default SG for simplicity
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ecr.api" 
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.default.id]
   private_dns_enabled = true
 
   tags = {
@@ -124,11 +126,11 @@ resource "aws_vpc_endpoint" "ecr_api" {
 }
 
 resource "aws_vpc_endpoint" "ecr_dkr" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${aws_get_region().name}.ecr.dkr"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.default.id]
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ecr.dkr" 
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.default.id]
   private_dns_enabled = true
 
   tags = {
@@ -138,8 +140,8 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
 
 # An S3 Gateway endpoint is also required because ECR uses S3 to store image layers.
 resource "aws_vpc_endpoint" "s3_gateway" {
-  vpc_id       = aws_vpc.main.id
-  service_name = "com.amazonaws.${aws_get_region().name}.s3"
+  vpc_id          = aws_vpc.main.id
+  service_name    = "com.amazonaws.${data.aws_region.current.name}.s3" 
   vpc_endpoint_type = "Gateway"
   route_table_ids = [for table in aws_route_table.private : table.id]
 
@@ -160,11 +162,11 @@ resource "aws_security_group" "default" {
     protocol  = "-1"
     self      = true
   }
-  
+
   egress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -173,5 +175,5 @@ resource "aws_security_group" "default" {
   }
 }
 
-# The aws_get_region data source is needed for the service names.
-data "aws_get_region" "current" {}
+# Data source to dynamically get the current AWS region.
+data "aws_region" "current" {} 
