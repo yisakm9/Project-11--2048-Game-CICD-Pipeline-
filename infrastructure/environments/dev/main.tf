@@ -42,7 +42,7 @@ module "alb" {
 }
 
 
-# --- IAM ---
+#  IAM 
 # Instantiate the IAM module to create the necessary roles for the ECS service.
 module "iam" {
   source = "../../modules/iam"
