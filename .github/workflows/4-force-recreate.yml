@@ -1,0 +1,77 @@
+#
+# Description: A manually triggered workflow to force the destruction and recreation
+#          of a specific, faulty infrastructure resource by using 'terraform taint'.
+#
+# WARNING: This is a targeted but destructive operation. Use with caution.
+#
+# Trigger: This workflow can ONLY be triggered manually from the GitHub Actions UI.
+#
+name: 'MAINTENANCE - Force Recreate Resource'
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_address:
+        description: 'The full Terraform resource address to taint (e.g., module.alb.aws_lb.main).'
+        required: true
+      confirmation:
+        description: 'To confirm, type the exact phrase "force-recreate-resource".'
+        required: true
+
+jobs:
+  taint-and-apply:
+    name: Taint and Apply Resource
+    runs-on: ubuntu-latest
+    environment: development
+
+    env:
+      CONFIRMATION_PHRASE: 'force-recreate-resource'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    defaults:
+      run:
+        working-directory: ./infrastructure/environments/dev
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 'Verify Confirmation Phrase'
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "${{ env.CONFIRMATION_PHRASE }}" ]; then
+            echo "❌ ERROR: Confirmation phrase did not match. Aborting workflow."
+            exit 1
+          else
+            echo "✅ Confirmation phrase matches. Proceeding."
+          fi
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::456202167790:role/githubaction
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.1"
+          
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -input=false
+
+      - name: Taint the Specified Resource
+        id: taint
+        run: terraform taint ${{ github.event.inputs.resource_address }}
+
+      - name: Terraform Plan After Taint
+        id: plan
+        run: terraform plan -var-file="dev.tfvars" -input=false -no-color
+
+      - name: Terraform Apply to Recreate Resource
+        id: apply
+        run: terraform apply -auto-approve -var-file="dev.tfvars" -input=false
