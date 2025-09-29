@@ -85,7 +85,7 @@ resource "aws_ecs_service" "main" {
   }
 
   # This ensures that the service waits for the ALB to be ready before starting.
-  depends_on = [
-    aws_lb_listener.http # Assuming the listener is created in the ALB module
-  ]
+  #depends_on = [
+  #  aws_lb_listener.http # Assuming the listener is created in the ALB module
+  # ]
 }
