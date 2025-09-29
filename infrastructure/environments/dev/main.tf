@@ -30,7 +30,7 @@ module "ecr" {
   repository_name = "${var.project_name}-${var.environment}"
 }
 
-# --- Load Balancer ---
+#  Load Balancer 
 # Instantiate the ALB module to create the public entry point for the application.
 module "alb" {
   source = "../../modules/alb"
