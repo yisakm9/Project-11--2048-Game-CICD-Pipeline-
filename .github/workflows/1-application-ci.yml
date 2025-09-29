@@ -7,19 +7,23 @@
 name: CI - Build Application
 
 on:
+  # Trigger the workflow on pushes to any branch that change application code
   push:
     branches:
-      - '**'
+      - '**' # Runs on all branches
     paths:
       - 'application/**'
+
+  # Allow the workflow to be triggered manually
   workflow_dispatch:
 
-# CRITICAL: These values MUST match the outputs from your Terraform apply.
 env:
-  AWS_REGION: "us-east-1"
-  ECR_REPOSITORY: "game-2048-dev"
-  ECS_CLUSTER_NAME: "game-2048-cluster-dev"
-  ECS_SERVICE_NAME: "game-2048-service-dev"
+  # IMPORTANT: Replace with your actual values.
+  # These can be retrieved from the output of the terraform apply command.
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: game-2048-dev
+  ECS_CLUSTER_NAME: game-2048-cluster-dev
+  ECS_SERVICE_NAME: game-2048-service-dev
 
 jobs:
   build-and-push:
@@ -37,7 +41,7 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # The ARN of the IAM role
+          
           role-to-assume: arn:aws:iam::456202167790:role/githubaction
           aws-region: ${{ env.AWS_REGION }}
 
@@ -49,12 +53,11 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.sha }} #  SHA for a unique tag
         run: |
-          echo "Building image for repository: $ECR_REGISTRY/$ECR_REPOSITORY"
           # Build the docker image
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./application
-          # Push the primary tag
+          # Push the image to ECR
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           # Also tag as 'latest' for the service to automatically pick up
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
@@ -64,6 +67,6 @@ jobs:
       - name: Force New ECS Deployment
         if: github.ref == 'refs/heads/main' # Only deploy on merges to main
         run: |
-          echo "Forcing new deployment of service ${{ env.ECS_SERVICE_NAME }} in cluster ${{ env.ECS_CLUSTER_NAME }}..."
-          aws ecs update-service --cluster ${{ env.ECS_CLUSTER_NAME }} --service ${{ env.ECS_SERVICE_NAME }} --force-new-deployment
+          echo "Forcing new deployment of the service..."
+          aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $ECS_SERVICE_NAME --force-new-deployment
           echo "Deployment initiated."
