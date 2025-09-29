@@ -105,3 +105,73 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
 }
+# --- VPC Endpoints for ECR ---
+# Creates a private network path for ECS tasks in private subnets
+# to pull images from ECR without needing to go over the public internet.
+# This is a critical requirement for Fargate tasks in private subnets.
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${aws_get_region().name}.ecr.api"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = aws_subnet.private[*].id
+  security_group_ids = [aws_security_group.default.id] # Using the default SG for simplicity
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${var.project_name}-ecr-api-vpce-${var.environment}"
+  }
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${aws_get_region().name}.ecr.dkr"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = aws_subnet.private[*].id
+  security_group_ids = [aws_security_group.default.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${var.project_name}-ecr-dkr-vpce-${var.environment}"
+  }
+}
+
+# An S3 Gateway endpoint is also required because ECR uses S3 to store image layers.
+resource "aws_vpc_endpoint" "s3_gateway" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.${aws_get_region().name}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [for table in aws_route_table.private : table.id]
+
+  tags = {
+    Name = "${var.project_name}-s3-gateway-vpce-${var.environment}"
+  }
+}
+
+# The default security group of the VPC needs to allow traffic from the VPC itself
+# for the endpoints to work correctly.
+resource "aws_security_group" "default" {
+  name_prefix = "${var.project_name}-default-sg-"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    self      = true
+  }
+  
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-default-sg-${var.environment}"
+  }
+}
+
+# The aws_get_region data source is needed for the service names.
+data "aws_get_region" "current" {}
