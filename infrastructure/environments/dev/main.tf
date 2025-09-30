@@ -54,7 +54,7 @@ module "iam" {
   aws_region     = var.region
 }
 
-# --- ECS Service ---
+# ECS Service 
 # Instantiate the ECS module to run our containerized application.
 module "ecs_service" {
   source = "../../modules/ecs_service"
