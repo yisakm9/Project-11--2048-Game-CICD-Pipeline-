@@ -121,7 +121,7 @@ resource "aws_security_group" "default" {
     from_port = 0
     to_port   = 0
     protocol  = "-1"
-    self      = true
+    cidr_blocks = [var.vpc_cidr_block] # CHANGE THIS LINE
   }
 
   egress {
