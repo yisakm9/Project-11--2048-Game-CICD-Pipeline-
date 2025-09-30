@@ -1,7 +1,7 @@
 # --- Data Sources ---
 # Retrieves the AWS Account ID dynamically.
 data "aws_caller_identity" "current" {}
-# --- Networking ---
+# Networking 
 # Instantiate the VPC module to create the network foundation.
 module "vpc" {
   source = "../../modules/vpc" # Relative path to the VPC module
