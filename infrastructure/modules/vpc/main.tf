@@ -178,3 +178,19 @@ resource "aws_vpc_endpoint" "s3_gateway" {
     Name = "${var.project_name}-s3-gateway-vpce-${var.environment}"
   }
 }
+
+# --- NEWLY ADDED BLOCK ---
+# Endpoint for Elastic Load Balancing, required for the ECS service to
+# register its tasks with the Target Group from a private subnet.
+resource "aws_vpc_endpoint" "elb" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.id}.elasticloadbalancing"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.default.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${var.project_name}-elb-vpce-${var.environment}"
+  }
+}
