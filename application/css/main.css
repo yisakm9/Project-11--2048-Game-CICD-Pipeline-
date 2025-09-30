@@ -1,239 +1,115 @@
-/* main.css — Classic 2048 look, responsive & animated */
-/* CSS variables for easy theme adjustments */
-:root{
-  --bg: #faf8ef;
-  --board-bg: #bbada0;
-  --cell-bg: #cdc1b4;
-  --tile-2: #eee4da;
-  --tile-4: #ede0c8;
-  --tile-8: #f2b179;
-  --tile-16: #f59563;
-  --tile-32: #f67c5f;
-  --tile-64: #f65e3b;
-  --tile-128: #edcf72;
-  --tile-256: #edcc61;
-  --tile-512: #edc850;
-  --tile-1024: #edc53f;
-  --tile-2048: #edc22e;
-  --text-light: #f9f6f2;
-  --text-dark: #776e65;
-  --accent: #8f7a66;
-  --container-width: min(520px, 92vw);
-  --cell-gap: 16px;
-  --grid-size: 4;
-  --animation-duration: 160ms;
-  --tile-size: calc((var(--container-width) - (var(--cell-gap) * (var(--grid-size) + 1))) / var(--grid-size));
+body {
+  background: #faf8ef;
+  font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+  color: #776e65;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  background: linear-gradient(180deg, #f0eade, var(--bg));
-  color:var(--text-dark);
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:28px 16px;
+.game-container {
+  text-align: center;
 }
 
-.app{
-  width:var(--container-width);
-  display:flex;
-  flex-direction:column;
-  gap:18px;
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-/* Header */
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-}
-.title{
-  margin:0;
-  font-size:36px;
-  letter-spacing: -1px;
+h1 {
+  font-size: 80px;
+  margin: 0;
+  font-weight: bold;
   color: #776e65;
 }
-.score-container{
-  display:flex;
-  gap:8px;
-  align-items:center;
+
+.score-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-.score-box{
+
+#score {
   background: #bbada0;
-  color:var(--text-light);
-  padding:8px 12px;
-  border-radius:6px;
-  text-align:center;
-  font-weight:700;
-  min-width:110px;
-}
-.score-box > div{
-  font-size:18px;
-  margin-top:6px;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: bold;
+  margin-bottom: 10px;
 }
 
-/* Buttons */
-.btn{
-  background:#eee4da;
+#new-game {
+  background: #8f7a66;
+  color: white;
   border: none;
-  border-radius:6px;
-  padding:8px 12px;
-  cursor:pointer;
-  font-weight:700;
-  box-shadow: 0 2px 0 rgba(0,0,0,0.08);
-}
-.btn.small{padding:6px 10px}
-.btn.primary{
-  background: #f7963f;
-  color: #fff;
+  padding: 10px 15px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
-/* Game area */
-.game-area{display:flex;flex-direction:column;gap:12px}
-.instructions{
-  margin:0;
-  color:var(--accent);
-  font-size:14px;
+#new-game:hover {
+  background: #9f8b77;
 }
 
-/* board */
-.board-wrap{
-  width:100%;
-  background:transparent;
-  display:flex;
-  justify-content:center;
-  align-items:center;
+.subtitle {
+  margin: 15px 0;
 }
 
-/* static grid background */
-.grid{
-  width:100%;
-  max-width:var(--container-width);
-  background:var(--board-bg);
-  padding:var(--cell-gap);
-  border-radius:8px;
-  position:relative;
-  /* maintain square */
-  aspect-ratio:1 / 1;
-  display:grid;
-  grid-template-columns:repeat(var(--grid-size), 1fr);
-  gap:var(--cell-gap);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+.grid-container {
+  position: relative; /* critical for tiles */
+  width: 500px;
+  height: 500px;
+  background: #bbada0;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 0 auto 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 15px;
+  box-sizing: border-box;
 }
 
-/* empty cells look */
-.grid::before{
-  content: '';
-  position:absolute;
-  inset:0;
-  border-radius:8px;
-  pointer-events:none;
-}
-.grid .cell{
-  background:var(--cell-bg);
-  border-radius:6px;
-  display:block;
+.grid-cell {
+  background: #cdc1b4;
+  border-radius: 5px;
 }
 
-/* tile container is above the grid using absolute positioning */
-.tile-container{
-  position:absolute;
-  inset:0;
-  padding:var(--cell-gap);
-  pointer-events:none; /* tiles don't intercept touches */
+.tile {
+  position: absolute;
+  width: 107px;  /* (500 - (15*5)) / 4 */
+  height: 107px;
+  border-radius: 5px;
+  font-size: 45px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: top 0.2s ease, left 0.2s ease, transform 0.2s ease;
 }
 
-/* individual tile styling; absolute positioned by JS */
-.tile{
-  position:absolute;
-  width:var(--tile-size);
-  height:var(--tile-size);
-  border-radius:6px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:800;
-  font-size:1.2rem;
-  transform-origin:center;
-  transition:
-    transform var(--animation-duration) ease,
-    box-shadow var(--animation-duration) ease,
-    opacity var(--animation-duration) ease;
-  will-change:transform, opacity;
-  user-select:none;
-  -webkit-user-select:none;
-  pointer-events:auto;
-}
-
-/* tile colors by value */
-.tile.tile-2 { background:var(--tile-2); color:var(--text-dark); }
-.tile.tile-4 { background:var(--tile-4); color:var(--text-dark); }
-.tile.tile-8 { background:var(--tile-8); color:var(--text-light); font-size:1.25rem; }
-.tile.tile-16 { background:var(--tile-16); color:var(--text-light); font-size:1.25rem; }
-.tile.tile-32 { background:var(--tile-32); color:var(--text-light); font-size:1.25rem; }
-.tile.tile-64 { background:var(--tile-64); color:var(--text-light); font-size:1.25rem; }
-.tile.tile-128 { background:var(--tile-128); color:var(--text-dark); font-size:1.05rem; padding:4px; }
-.tile.tile-256 { background:var(--tile-256); color:var(--text-dark); font-size:1.05rem; padding:4px; }
-.tile.tile-512 { background:var(--tile-512); color:var(--text-dark); font-size:1.05rem; padding:4px; }
-.tile.tile-1024 { background:var(--tile-1024); color:var(--text-dark); font-size:0.95rem; padding:4px; }
-.tile.tile-2048 { background:var(--tile-2048); color:var(--text-dark); font-size:0.95rem; padding:4px; box-shadow:0 6px 20px rgba(237,194,46,0.28); }
-
-/* new tile pop animation */
 .tile.new {
-  animation: pop var(--animation-duration) ease;
-}
-@keyframes pop {
-  0% { transform: scale(0.2); opacity:0; }
-  60% { transform: scale(1.08); opacity:1; }
-  100% { transform: scale(1); }
+  animation: appear 0.3s ease;
 }
 
-/* merge pulse */
-.tile.merge {
-  animation: mergeAnim 220ms ease;
-}
-@keyframes mergeAnim {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.18); }
-  100% { transform: scale(1); }
+@keyframes appear {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 
-/* overlay modal (win/game-over) */
-.overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.4);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:1000;
-}
-.overlay.hidden{display:none}
-.overlay-card{
-  background: #fff;
-  padding:20px;
-  border-radius:10px;
-  min-width:260px;
-  text-align:center;
-  box-shadow:0 18px 50px rgba(0,0,0,0.3);
-}
-.overlay-actions{display:flex;gap:8px;justify-content:center;margin-top:12px}
-
-/* responsive adjustments */
-@media (max-width:420px){
-  .title{font-size:28px}
-  .score-box{min-width:88px}
-  :root{--cell-gap:12px}
-  :root{--container-width:92vw}
-  .tile{font-size:1rem}
-}
-
-/* accessible focus */
-.btn:focus{outline:3px solid rgba(0,0,0,0.06); outline-offset:2px}
+/* Tile colors */
+.tile[data-value="2"]    { background: #eee4da; color: #776e65; }
+.tile[data-value="4"]    { background: #ede0c8; color: #776e65; }
+.tile[data-value="8"]    { background: #f2b179; color: #f9f6f2; }
+.tile[data-value="16"]   { background: #f59563; color: #f9f6f2; }
+.tile[data-value="32"]   { background: #f67c5f; color: #f9f6f2; }
+.tile[data-value="64"]   { background: #f65e3b; color: #f9f6f2; }
+.tile[data-value="128"]  { background: #edcf72; color: #f9f6f2; font-size: 40px; }
+.tile[data-value="256"]  { background: #edcc61; color: #f9f6f2; font-size: 40px; }
+.tile[data-value="512"]  { background: #edc850; color: #f9f6f2; font-size: 40px; }
+.tile[data-value="1024"] { background: #edc53f; color: #f9f6f2; font-size: 35px; }
+.tile[data-value="2048"] { background: #edc22e; color: #f9f6f2; font-size: 35px; }

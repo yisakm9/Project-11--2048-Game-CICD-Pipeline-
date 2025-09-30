@@ -1,51 +1,44 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>2048 — Vanilla JS</title>
-  <link rel="stylesheet" href="css/main.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>2048</title>
+  <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
-  <main class="app">
-    <header class="header">
-      <h1 class="title">2048</h1>
+  <div class="game-container">
+    <header>
+      <h1>2048</h1>
       <div class="score-container">
-        <div class="score-box">Score<div id="score">0</div></div>
-        <button id="newGameBtn" class="btn small">New Game</button>
+        <div id="score">0</div>
+        <button id="new-game">New Game</button>
       </div>
     </header>
-
-    <section class="game-area">
-      <div class="game-info">
-        <p class="instructions">Join the numbers and get to the <strong>2048</strong> tile!</p>
-      </div>
-
-      <div class="board-wrap">
-        <!-- static grid background -->
-        <div id="grid" class="grid"></div>
-        <!-- dynamic tiles container (absolute positioned tiles) -->
-        <div id="tile-container" class="tile-container"></div>
-      </div>
-    </section>
-
-    <footer class="footer">
-      <small>Built with vanilla HTML/CSS/JS — responsive & animated</small>
-    </footer>
-  </main>
-
-  <!-- Win / Game Over modal -->
-  <div id="overlay" class="overlay hidden" aria-hidden="true">
-    <div class="overlay-card">
-      <h2 id="overlay-title">You win!</h2>
-      <p id="overlay-text">You've created the 2048 tile.</p>
-      <div class="overlay-actions">
-        <button id="keepPlayingBtn" class="btn">Keep Playing</button>
-        <button id="tryAgainBtn" class="btn primary">Try Again</button>
-      </div>
+    <p class="subtitle">Join the numbers and get to the 2048 tile!</p>
+    <div class="grid-container" id="grid-container">
+      <!-- 16 background cells -->
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
+      <div class="grid-cell"></div>
     </div>
+    <footer>
+      <p>Built with vanilla HTML/CSS/JS — responsive & animated</p>
+    </footer>
   </div>
-
-  <script src="js/main.js" defer></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
