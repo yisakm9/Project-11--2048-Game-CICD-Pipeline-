@@ -11,10 +11,18 @@ resource "aws_security_group" "ecs_tasks" {
     protocol        = "tcp"
     from_port       = var.container_port
     to_port         = var.container_port
-    security_groups = [var.alb_security_group_id] # Only allows traffic from our ALB
-    description     = "Allow traffic from ALB"
+    security_groups = [var.alb_security_group_id]
+    description     = "Allow traffic from the Application Load Balancer"
   }
 
+  # Add a self-referencing rule for completeness, allowing tasks to talk to each other if needed.
+  ingress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    self        = true
+    description = "Allow traffic from other resources in this same SG"
+  }
   egress {
     protocol    = "-1"
     from_port   = 0
