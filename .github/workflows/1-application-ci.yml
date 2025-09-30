@@ -57,12 +57,13 @@ jobs:
       - name: Download current ECS Task Definition
         run: |
           aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_FAMILY }} \
-            --query '{ containerDefinitions: taskDefinition.containerDefinitions, family: taskDefinition.family, volumes: taskDefinition.volumes, placementConstraints: taskDefinition.placementConstraints, requiresCompatibilities: taskDefinition.requiresCompatibilities, cpu: taskDefinition.cpu, memory: taskDefinition.memory, executionRoleArn: taskDefinition.executionRoleArn }' \
+            --query '{ containerDefinitions: taskDefinition.containerDefinitions, family: taskDefinition.family, volumes: taskDefinition.volumes, placementConstraints: taskDefinition.placementConstraints, requiresCompatibilities: taskDefinition.requiresCompatibilities, cpu: taskDefinition.cpu, memory: taskDefinition.memory, executionRoleArn: taskDefinition.executionRoleArn, networkMode: taskDefinition.networkMode }' \
             > task-definition.json
 
       - name: Create New Task Definition Revision with Updated Image
         id: task-def
         run: |
+          # The jq command remains the same, as it operates on the now-correct JSON file
           NEW_TASK_DEF_JSON=$(jq \
             --arg IMAGE_URI "${{ steps.build-image.outputs.image_uri }}" \
             --arg CONTAINER_NAME "${{ env.CONTAINER_NAME }}" \
