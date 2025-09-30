@@ -1,33 +1,29 @@
 #
-# Description: Continuous Integration (CI) workflow for building and pushing the application's Docker image.
+# Description: Professional CI workflow for building a uniquely tagged Docker image
+#              and deploying it by creating a new ECS Task Definition revision.
 #
-# Trigger: This workflow runs automatically on a push to the 'application/' directory
-#          on any branch, or can be triggered manually.
-#
-name: CI - Build Application
+name: CI - Build & Deploy Application
 
 on:
-  # Trigger the workflow on pushes to any branch that change application code
   push:
     branches:
-      - '**' # Runs on all branches
+      - main
     paths:
       - 'application/**'
-
-  # Allow the workflow to be triggered manually
   workflow_dispatch:
 
 env:
   # IMPORTANT: Replace with your actual values.
-  # These can be retrieved from the output of the terraform apply command.
   AWS_REGION: us-east-1
   ECR_REPOSITORY: game-2048-dev
   ECS_CLUSTER_NAME: game-2048-cluster-dev
   ECS_SERVICE_NAME: game-2048-service-dev
+  ECS_TASK_FAMILY: game-2048-task-dev
+  CONTAINER_NAME: game-2048-container-dev
 
 jobs:
-  build-and-push:
-    name: Build and Push to ECR
+  build-and-deploy:
+    name: Build and Deploy to ECS
     runs-on: ubuntu-latest
 
     permissions:
@@ -41,7 +37,6 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          
           role-to-assume: arn:aws:iam::456202167790:role/githubaction
           aws-region: ${{ env.AWS_REGION }}
 
@@ -53,20 +48,35 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }} #  SHA for a unique tag
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build the docker image
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./application
-          # Push the image to ECR
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          # Also tag as 'latest' for the service to automatically pick up
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Force New ECS Deployment
-        if: github.ref == 'refs/heads/main' # Only deploy on merges to main
+      - name: Download current ECS Task Definition
         run: |
-          echo "Forcing new deployment of the service..."
-          aws ecs update-service --cluster $ECS_CLUSTER_NAME --service $ECS_SERVICE_NAME --force-new-deployment
-          echo "Deployment initiated."
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_FAMILY }} \
+            --query '{ containerDefinitions: taskDefinition.containerDefinitions, family: taskDefinition.family, volumes: taskDefinition.volumes, placementConstraints: taskDefinition.placementConstraints, requiresCompatibilities: taskDefinition.requiresCompatibilities, cpu: taskDefinition.cpu, memory: taskDefinition.memory, executionRoleArn: taskDefinition.executionRoleArn }' \
+            > task-definition.json
+
+      - name: Create New Task Definition Revision with Updated Image
+        id: task-def
+        run: |
+          NEW_TASK_DEF_JSON=$(jq \
+            --arg IMAGE_URI "${{ steps.build-image.outputs.image_uri }}" \
+            --arg CONTAINER_NAME "${{ env.CONTAINER_NAME }}" \
+            '.containerDefinitions[0].image = $IMAGE_URI | .containerDefinitions |= (map(if .name == $CONTAINER_NAME then .image = $IMAGE_URI else . end))' \
+            task-definition.json)
+          
+          NEW_TASK_INFO=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF_JSON")
+          
+          NEW_REVISION_ARN=$(echo "$NEW_TASK_INFO" | jq -r '.taskDefinition.taskDefinitionArn')
+          echo "new_task_definition_arn=$NEW_REVISION_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS Service to Use New Task Definition
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service ${{ env.ECS_SERVICE_NAME }} \
+            --task-definition ${{ steps.task-def.outputs.new_task_definition_arn }}
