@@ -17,5 +17,9 @@ variable "vpc_id" {
 
 variable "public_subnet_ids" {
   description = "A list of public subnet IDs for the ALB."
+  type        = any
+}
+variable "vpc_public_route_table_association_ids" {
+  description = "A list of the public subnet route table association IDs to depend on."
   type        = list(string)
 }

@@ -39,6 +39,7 @@ module "alb" {
   environment       = var.environment
   vpc_id            = module.vpc.vpc_id
   public_subnet_ids = module.vpc.public_subnet_ids
+  vpc_public_route_table_association_ids = module.vpc.public_route_table_association_ids
 }
 
 

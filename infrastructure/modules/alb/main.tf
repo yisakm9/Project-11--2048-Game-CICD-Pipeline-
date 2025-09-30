@@ -36,7 +36,7 @@ resource "aws_lb" "main" {
   subnets            = var.public_subnet_ids
 
   enable_deletion_protection = false # Set to true in production
-
+  depends_on = [var.vpc_public_route_table_association_ids]
   tags = {
     Name = "${var.project_name}-alb-${var.environment}"
   }

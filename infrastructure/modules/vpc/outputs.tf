@@ -19,3 +19,7 @@ output "availability_zones" {
   description = "The availability zones used by the VPC."
   value       = var.availability_zones
 }
+output "public_route_table_association_ids" {
+  description = "The IDs of the public route table associations."
+  value       = aws_route_table_association.public[*].id
+}
