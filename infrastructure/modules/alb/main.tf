@@ -27,7 +27,7 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# --- Application Load Balancer ---
+#  Application Load Balancer 
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb-${var.environment}"
   internal           = false
