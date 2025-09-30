@@ -34,6 +34,7 @@ resource "aws_lb" "main" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
+  ip_address_type    = "ipv4"
 
   enable_deletion_protection = false # Set to true in production
   depends_on = [var.vpc_public_route_table_association_ids]
